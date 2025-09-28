@@ -32,7 +32,7 @@ jobs:
       - name: Scan iac IAC
         run: |
           snyk auth ${{ secrets.SNYK_TOKEN }}
-          snyk iac test --report --json > snyk-iac-results || true
+          snyk iac test > snyk-iac-results || true
           snyk iac test || true
           high_count=$(grep -c '\[High\]' snyk-iac-results)
           critical_count=$(grep -c '\[Critical\]' snyk-iac-results)
