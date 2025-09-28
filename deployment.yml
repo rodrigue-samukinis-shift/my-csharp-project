@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: insecure-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: insecure-app
+  template:
+    metadata:
+      labels:
+        app: insecure-app
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.17  # ❌ Outdated version
+          ports:
+            - containerPort: 80
+          securityContext:
+            runAsUser: 0       # ❌ Runs as root
+            privileged: false
+          env:
+            - name: APP_SECRET
+              value: "supersecret"  # ❌ Secret exposed in plain text
