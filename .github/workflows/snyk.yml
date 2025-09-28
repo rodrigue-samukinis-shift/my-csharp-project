@@ -34,6 +34,7 @@ jobs:
           snyk auth ${{ secrets.SNYK_TOKEN }}
           snyk iac test --report --json > snyk-iac-results.json || true
           snyk iac test || true
+          cat snyk-iac-results.json
           high_count=$(jq '[.[].infrastructureAsCodeIssues[]? | select(.severity == "high")] | length' snyk-iac-results.json)
           critical_count=$(jq '[.[].infrastructureAsCodeIssues[]? | select(.severity == "critical")] | length' snyk-iac-results.json)
 
