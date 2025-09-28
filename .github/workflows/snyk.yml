@@ -1,0 +1,80 @@
+name: Snyk Python Scan
+
+on: [push, pull_request]
+
+jobs:
+  snyk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Snyk CLI
+        run: |
+          curl https://static.snyk.io/cli/latest/snyk-linux -o snyk
+          chmod +x ./snyk
+          mv ./snyk /usr/local/bin/
+      - name: Scan source code SAST
+        run: |
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+          snyk code test > snyk-code-results || true
+          snyk code test || true
+          high_count=$(grep -c '[HIGH] ' snyk-code-results || true)
+          # Affichage + contrôle de sortie
+          if [ "$high_count" -gt 0 ]; then
+            echo "❌ Échec : $high_count HIGH"
+            exit 1
+          else
+            echo "✅ Aucun HIGH ou CRITICAL"
+            exit 0
+          fi
+
+      - name: Scan iac IAC
+        run: |
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+          snyk iac test --report --json > snyk-iac-results.json || true
+          snyk iac test || true
+          high_count=$(jq '[.[].infrastructureAsCodeIssues[]? | select(.severity == "high")] | length' snyk-iac-results.json)
+          critical_count=$(jq '[.[].infrastructureAsCodeIssues[]? | select(.severity == "critical")] | length' snyk-iac-results.json)
+
+          # Affichage + contrôle de sortie
+          if [ "$high_count" -gt 0 ] || [ "$critical_count" -gt 0 ]; then
+            echo "❌ Échec : $critical_count vulnérabilités CRITICAL, $high_count HIGH"
+            exit 1
+          else
+            echo "✅ Aucun HIGH ou CRITICAL"
+            exit 0
+          fi
+      - name: Scan dependencies SCA
+        run: |
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+          snyk test > snyk-sca-results || true
+          snyk test || true
+          high_count=$(grep -c "\[High Severity\]" snyk-sca-results || true)
+          critical_count=$(grep -c "\[Critical Severity\]" snyk-sca-results || true)
+
+          # Affichage + contrôle de sortie
+          if [ "$high_count" -gt 0 ] || [ "$critical_count" -gt 0 ]; then
+            echo "❌ Échec : $critical_count vulnérabilités CRITICAL, $high_count HIGH"
+            exit 1
+          else
+            echo "✅ Aucun HIGH ou CRITICAL"
+            exit 0
+          fi
+      - name: Scan container image
+        run: |
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+          snyk container test python:3.12-slim > snyk-container-results || true
+          snyk container test python:3.12-slim || true
+          high_count=$(grep -c "High severity" snyk-container-results || true)
+          critical_count=$(grep -c "Critical severity" snyk-container-results || true)
+          
+          # Affichage + contrôle de sortie
+          if [ "$high_count" -gt 0 ] || [ "$critical_count" -gt 0 ]; then
+              echo "❌ Échec : $critical_count vulnérabilités CRITICAL, $high_count HIGH"
+              exit 1
+          else
+              echo "✅ Aucun HIGH ou CRITICAL"
+              exit 0
+          fi
+          
